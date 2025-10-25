@@ -23,7 +23,7 @@ jobs:
           set -e
 
           PROJECT_DIR="home/vanilla-http-web-server"
-          ls -a
+
           cd ..
           cd "$PROJECT_DIR"
 
