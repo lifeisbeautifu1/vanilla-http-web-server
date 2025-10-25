@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { constants, readFile } from "node:fs";
+import { readFile } from "node:fs";
 import { dirname, join, normalize, extname } from "node:path";
 import { fileURLToPath, parse } from "node:url";
 import {
@@ -18,6 +18,7 @@ const PORT = process.env.PORT ? +process.env.PORT : 5000;
 const PUBLIC_DIR = join(__dirname, "..", "public");
 
 const server = createServer((req, res) => {
+  console.log("LOGGING req.url:", req.url);
   if (req.url === "/api/products" && req.method === "GET") {
     getProducts(req, res);
   } else if (
