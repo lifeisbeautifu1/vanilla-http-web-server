@@ -22,10 +22,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           set -e
 
-          PROJECT_DIR="/home/vanilla-http-web-server"
-
-          cd ..
-          cd "$PROJECT_DIR"
+          cd ~/../home/vanilla-http-web-server
 
           CURRENT_PORT=$(ss -tuln | grep ":500[01]" | grep "LISTEN" | awk "${print \$5}" | cut -d":" -f2 | head n1)
 
