@@ -19,7 +19,7 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
           set -e
 
           ls -la
@@ -70,3 +70,4 @@ jobs:
           fi
 
           echo "Деплой завершен. Новый сервер на порту $NEW_PORT"
+          '
