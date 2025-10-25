@@ -1,0 +1,73 @@
+name: Zero-Downtime Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+          set -e
+
+          PROJECT_DIR = "../home/vanilla-http-web-server"
+          cd "$PROJECT_DIR"
+
+          CURRENT_PORT=$(ss -tuln | grep ":500[01]" | grep "LISTEN" | awk "${print \$5}" | cut -d":" -f2 | head n1)
+
+          if [ "$CURRENT_PORT" = "5000" ]; then
+            NEW_PORT=5001
+          elif [ "$CURRENT_PORT" = "5001"]; then
+            NEW_PORT=5000
+          elif
+            echo "Нет активного контейнера на 5000 или 5001. Запускаем 5000."
+            NEW_PORT=5000
+
+
+          echo "Текущий порт: ${CURRENT_PORT}, новый порт: ${NEW_PORT}"
+
+          git pull origin master
+
+          echo "Сборка Docker-образа..."
+
+          docker build -t poltoradnev-app:latest .
+
+          echo "Запускаем контейнер на порту $NEW_PORT"
+
+          docker run -d \
+            --name poltoradnev-app-$NEW_PORT \
+            -p 127.0.0.1:$NEW_PORT:5000 \
+            -e PORT=5000 \
+            --restart unless-stopped \
+            poltoradnev-app:latest
+
+          sleep 5
+
+
+          if ! docker logs poltoradnev-app-${NEW_PORT} | grep -q "Server running"; then
+            echo "Сервер не запустился. Останавливаем."
+            docker stop poltoradnev-app-$NEW_PORT
+            docker rm poltoradnev-app-$NEW_PORT
+            exit 1
+          fi
+
+
+          if [ -n "$CURRENT_PORT" ]; then
+            echo "Остановка старого контейнера на порту $CURRENT_PORT"
+            docker stop poltoradnev-app-$CURRENT_PORT || true
+            docker rm poltoradnev-app-$CURRENT_PORT || true
+          fi
+
+          echo "Деплой завершен. Новый сервер на порту $NEW_PORT"

@@ -1,6 +1,6 @@
 Build image:
 
-`docker build -t vanilla-http-server .`
+`docker build -t vanilla-http-server:latest .`
 
 Run container:
 
