@@ -22,10 +22,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           set -e
 
-          echo "PWD: $(pwd)"
-          eoch "User: $(whoami)"
-          cd "../../../vanilla-http-web-server" || (echo "Directory not found" && exit 1)
-          echo "Success"
           ls -la
 
           CURRENT_PORT=$(ss -tuln | grep ":500[01]" | grep "LISTEN" | awk "${print \$5}" | cut -d":" -f2 | head n1)
