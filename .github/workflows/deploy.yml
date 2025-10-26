@@ -73,5 +73,9 @@ jobs:
             docker rm poltoradnev-app-$CURRENT_PORT || true
           fi
 
+          echo "Очистка неиспользуемых образов и контейнеров"
+          docker system prune -f
+          docker image prune -f -a
+
           echo "Деплой завершен. Новый сервер на порту $NEW_PORT"
           '
