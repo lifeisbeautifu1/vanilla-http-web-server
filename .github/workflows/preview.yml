@@ -1,0 +1,28 @@
+name: Deploy Preview
+
+on:
+  pull_request:
+    types: ["opened", "reopened", "synchronize"]
+    branches: ["master"]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy preview
+        run: |
+          BRANCH=${GITHUB_HEAD_REF}
+          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
+          PORT=$((6000 + ($(echo -n "$SAFE_BRANCH" | cksum | cut -d' ' -f1) % 99 + 1)))
+          SUBDOMAIN="$SAFE_BRANCH.poltoradnev.ru"
+          URL="https://$SUBDOMAIN"
+
+          echo "Деплой $BRANCH -> $SUBDOMAIN (порт $PORT)"
