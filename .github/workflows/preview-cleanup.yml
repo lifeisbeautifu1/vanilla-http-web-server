@@ -37,7 +37,7 @@ jobs:
           NGINX_CONF="/etc/nginx/conf.d/preview-ports.conf"
 
           if [ -f "$NGINX_CONF" ]; then
-            sudo mv /tmp/preview-ports.conf.new "NGINX_CONF"
+            sudo mv /tmp/preview-ports.conf.new "$NGINX_CONF"
             sudo nginx -t && sudo systemctl reload nginx
           fi
 
