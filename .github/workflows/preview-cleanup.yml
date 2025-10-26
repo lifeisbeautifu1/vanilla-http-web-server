@@ -1,0 +1,45 @@
+name: Cleanup Preview
+
+on:
+  pull_request:
+    types: ["closed"]
+    branches: ["master"]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Stop and remove
+        run: |
+          BRANCH=${GITHUB_HEAD_REF}
+          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
+
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+          set -e
+
+          BRANCH='$BRANCH'
+          SAFE_BRANCH='$SAFE_BRANCH'
+          PROJECT_DIR="/var/www/preview-$SAFE_BRANCH"
+
+          echo "Очистка preview для $SAFE_BRANCH"
+
+          docker stop preview-$SAFE_BRANCH || true
+          docker rm preview-$SAFE_BRANCH || true
+          docker rmi preview-$SAFE_BRANCH || true
+
+          rm -rf $PROJECT_DIR
+
+          NGINX_CONF="/etc/nginx/conf.d/preview-ports.conf"
+
+          if [ -f "$NGINX_CONF" ]; then
+            sudo mv /tmp/preview-ports.conf.new "NGINX_CONF"
+            sudo nginx -t && sudo systemctl reload nginx
+          fi
+
+          echo "Контейнер и Nginx-конфиг очищены"
+          '

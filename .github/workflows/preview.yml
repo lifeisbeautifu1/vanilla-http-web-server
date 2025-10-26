@@ -26,3 +26,100 @@ jobs:
           URL="https://$SUBDOMAIN"
 
           echo "Деплой $BRANCH -> $SUBDOMAIN (порт $PORT)"
+          echo "$SAFE_BRANCH"
+
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+          set -e
+
+          BRANCH='$BRANCH'
+          SAFE_BRANCH='$SAFE_BRANCH'
+          PORT='$PORT'
+          PROJECT_DIR="/var/www/preview-$SAFE_BRANCH"
+
+          echo "BRANCH: $BRANCH"
+          echo "SAFE_BRANCH $SAFE_BRANCH"
+          echo "PORT $PORT"
+          echo "PROJECT_DIR: $PROJECT_DIR"
+
+          mkdir -p "$PROJECT_DIR"
+          cd "$PROJECT_DIR"
+
+          git init
+          git remote add origin https://github.com/lifeisbeautifu1/vanilla-http-web-server.git
+          git fetch origin "$BRANCH"
+          git reset --hard origin/"$BRANCH"
+
+          docker build -t preview-$SAFE_BRANCH .
+
+          docker stop preview-$SAFE_BRANCH || true
+          docker rm preview-$SAFE_BRANCH || true
+
+          docker run -d \
+            --name preview-$SAFE_BRANCH \
+            -p 127.0.0.1:$PORT:5000 \
+            -e PORT=5000 \
+            --restart unless-stopped \
+            preview-$SAFE_BRANCH
+
+
+          sleep 5
+
+          echo "Проверка health check"
+          sleep 5
+
+          for i in {1..10}; do
+            if curl -s http://127.0.0.1:$PORT/health | grep -q "ok"; then
+              echo "Health check пройден"
+              break
+            else
+              echo "Ожидание запуска сервера... (попытка $i)"
+              sleep 3
+            fi
+          done
+
+          if ! curl -s http://127.0.0.1:$PORT/health | grep -q "ok"; then
+            echo "Health check не пройден. Откат..."
+            docker stop preview-$SAFE_BRANCH
+            docker rm preview-$SAFE_BRANCH
+            exit 1
+          fi
+
+          NGINX_CONF="/etc/nginx/conf.d/preview-ports.conf"
+          TEMP_CONF="/tmp/preview-ports.conf"
+          NEW_LINE="~^$SAFE_BRANCH\.poltoradnev\.ru\$ $PORT;"
+
+          sudo cp "$NGINX_CONF" "$TEMP_CONF" || true
+
+          sudo grep -v "$SAFE_BRANCH\.poltoradnev\.ru" "$TEMP_CONF" | sudo tee "$TEMP_CONF.new" > /dev/null
+          sudo head -n -2 "$TEMP_CONF.new" | sudo tee "$TEMP_CONF" > /dev/null
+
+          echo "    $NEW_LINE" | sudo tee -a "$TEMP_CONF"
+          echo "    default 0;" | sudo tee -a "$TEMP_CONF"
+          echo "}" | sudo tee -a "$TEMP_CONF"
+
+          sudo mv "$TEMP_CONF" "$NGINX_CONF"
+
+          if sudo nginx -t; then
+            sudo systemctl reload nginx
+            echo "Nginx обновлен: $SUBDOMAIN -> port $PORT"
+          else
+            echo "Error in Nginx config"
+            exit 1
+          fi
+
+          echo "Preview ready: $URL"
+          '
+
+      - name: Comment preview URL
+        if: success()
+        run: |
+          BRANCH=${{ github.event.pull_request.head.ref }}
+          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
+          URL="https://$SAFE_BRANCH.poltoradnev.ru"
+          COMMENT="**Preview deployed**\n\n [Open preview]($URL)\n\nAuto-deployed via Github Actions"
+
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            -d "{\"body\": \"$COMMENT\"}"
