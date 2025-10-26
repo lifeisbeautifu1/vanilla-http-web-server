@@ -44,6 +44,16 @@ const server = createServer((req, res) => {
     updateProduct(req, res, id!);
   } else if (req.url === "/api/products" && req.method === "POST") {
     createProduct(req, res);
+  } else if (req.url === "/health" && req.method === "GET") {
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+      })
+    );
   } else {
     const parsedUrl = parse(req.url!);
     const pathname = parsedUrl.pathname;
