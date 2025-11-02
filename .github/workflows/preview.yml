@@ -44,8 +44,11 @@ jobs:
           mkdir -p "$PROJECT_DIR"
           cd "$PROJECT_DIR"
 
-          git init
-          git remote add origin https://github.com/lifeisbeautifu1/vanilla-http-web-server.git
+          if [ ! -d ".git" ]; then
+            git init
+            git remote add origin https://github.com/lifeisbeautifu1/vanilla-http-web-server.git
+          fi
+
           git fetch origin "$BRANCH"
           git reset --hard origin/"$BRANCH"
 
