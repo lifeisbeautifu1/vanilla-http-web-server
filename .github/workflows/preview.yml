@@ -91,9 +91,9 @@ jobs:
           TEMP_CONF="/tmp/preview-ports.conf"
           NEW_LINE="~^$SAFE_BRANCH\.poltoradnev\.ru\$ $PORT;"
 
-          sudo cp "$NGINX_CONF" "$TEMP_CONF" || true
+          sudo cp "$NGINX_CONF" "$TEMP_CONF"
 
-          sudo grep -v "$SAFE_BRANCH\.poltoradnev\.ru" "$TEMP_CONF" | sudo tee "$TEMP_CONF.new" > /dev/null
+          sudo grep -Fv "~^$SAFE_BRANCH\\.poltoradnev\\.ru\$" "$TEMP_CONF" | sudo tee "$TEMP_CONF.new" > /dev/null
           sudo head -n -2 "$TEMP_CONF.new" | sudo tee "$TEMP_CONF" > /dev/null
 
           echo "    $NEW_LINE" | sudo tee -a "$TEMP_CONF"
@@ -120,9 +120,42 @@ jobs:
           SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
           URL="https://$SAFE_BRANCH.poltoradnev.ru"
           COMMENT="**Preview deployed**\n\n [Open preview]($URL)\n\nAuto-deployed via Github Actions"
+          GH_USER="lifeisbeautifu1"
+          REQUEST_URL="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
 
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
-            -d "{\"body\": \"$COMMENT\"}"
+          echo "Получаем информацию о пользователе..."
+
+          USER_RESPONSE=$(curl -H "Authorization: Bearer ${{ secrets.GH_PAT }}" https://api.github.com/user)
+          GH_USER=$(echo "$USER_RESPONSE" | jq -r '.login // empty')
+
+          if [ -z "$GH_USER" ]; then
+            echo "Не удалось получить логин пользователя. Ответ от API:"
+            echo "$USER_RESPONSE"
+            exit 1
+          fi
+
+          echo "Текущий пользователь: $GH_USER"
+
+          echo "Проверяем существующие комментарии..."
+
+          COMMENTS_RESPONSE=$(curl -H "Authorization: Bearer ${{ secrets.GH_PAT }}" "$REQUEST_URL")
+
+          if echo "$COMMENTS_RESPONSE" | jq -e '.[]' >/dev/null 2>&1; then
+            PREVIEW_EXISTS=$(echo "$COMMENTS_RESPONSE" | \
+              jq -r --arg user "$GH_USER" --arg text "**Preview deployed**" \
+              '.[] | select(.user.login == $user) | .body' | \
+              grep -q "$text"; echo $?)
+          else
+            PREVIEW_EXISTS=1
+          fi
+
+          if [ $PREVIEW_EXISTS -eq 0 ]; then
+            echo "Комментарий с preview уже существует"
+          else
+            echo "Комментарий не найден. Добавляем новый..."
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "$REQUEST_URL" \
+              -d "{\"body\": \"$COMMENT\"}"
+          fi
