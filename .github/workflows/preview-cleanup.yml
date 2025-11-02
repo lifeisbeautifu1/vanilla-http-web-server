@@ -25,6 +25,8 @@ jobs:
           BRANCH='$BRANCH'
           SAFE_BRANCH='$SAFE_BRANCH'
           PROJECT_DIR="/var/www/preview-$SAFE_BRANCH"
+          NGINX_CONF="/etc/nginx/conf.d/preview-ports.conf"
+          TEMP_CONF="/tmp/preview-ports.conf"
 
           echo "Очистка preview для $SAFE_BRANCH"
 
@@ -34,12 +36,27 @@ jobs:
 
           rm -rf $PROJECT_DIR
 
-          NGINX_CONF="/etc/nginx/conf.d/preview-ports.conf"
-
           if [ -f "$NGINX_CONF" ]; then
-            sudo mv /tmp/preview-ports.conf.new "$NGINX_CONF"
-            sudo nginx -t && sudo systemctl reload nginx
+            sudo cp "$NGINX_CONF" "$TEMP_CONF"
+
+            sudo grep -Fv "~^$SAFE_BRANCH\\.poltoradnev\\.ru\$" "$TEMP_CONF" | sudo tee "$TEMP_CONF.new" > /dev/null
+
+            if [ ! -s "$TEMP_CONF.new" ]; then
+              echo "Ошибка: пустой конфиг после удаления"
+              exit 1
+            fi
+
+            if sudo nginx -t; then
+              sudo mv "$TEMP_CONF" "$NGINX_CONF"
+              sudo systemctl reload nginx
+              echo "Nginx обновлен: $SAFE_BRANCH удален"
+            else
+              echo "Ошибка в NGINX конфиге после очистки"
+              exit 1
+            fi
+          else
+            echo "Файл $NGINX_CONF не найден"
           fi
 
-          echo "Контейнер и Nginx-конфиг очищены"
+          echo "Очистка завершена для $SAFE_BRANCH"
           '
