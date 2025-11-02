@@ -47,7 +47,7 @@ jobs:
             fi
 
             if sudo nginx -t; then
-              sudo mv "$TEMP_CONF" "$NGINX_CONF"
+              sudo mv "$TEMP_CONF.new" "$NGINX_CONF"
               sudo systemctl reload nginx
               echo "Nginx обновлен: $SAFE_BRANCH удален"
             else
