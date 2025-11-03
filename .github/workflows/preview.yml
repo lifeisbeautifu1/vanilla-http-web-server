@@ -87,20 +87,14 @@ jobs:
             exit 1
           fi
 
-          NGINX_CONF="/etc/nginx/conf.d/preview-ports.conf"
-          TEMP_CONF="/tmp/preview-ports.conf"
-          NEW_LINE="~^$SAFE_BRANCH\.poltoradnev\.ru\$ $PORT;"
+          NGINX_PREVIEW_FILE="/etc/nginx/conf.d/preview-node.map"
+          PATTERN="~^$SAFE_BRANCH\\.poltoradnev\\.ru\$"
 
-          sudo cp "$NGINX_CONF" "$TEMP_CONF"
+          sudo grep -Fv "$PATTERN" "$NGINX_PREVIEW_FILE" | sudo tee "$NGINX_PREVIEW_FILE.tmp" > /dev/null
 
-          sudo grep -Fv "~^$SAFE_BRANCH\\.poltoradnev\\.ru\$" "$TEMP_CONF" | sudo tee "$TEMP_CONF.new" > /dev/null
-          sudo head -n -2 "$TEMP_CONF.new" | sudo tee "$TEMP_CONF" > /dev/null
+          echo "$PATTERN $PORT;" | sudo tee -a "$NGINX_PREVIEW_FILE.tmp" > /dev/null
 
-          echo "    $NEW_LINE" | sudo tee -a "$TEMP_CONF"
-          echo "    default 0;" | sudo tee -a "$TEMP_CONF"
-          echo "}" | sudo tee -a "$TEMP_CONF"
-
-          sudo mv "$TEMP_CONF" "$NGINX_CONF"
+          sudo mv "$NGINX_PREVIEW_FILE.tmp" "$NGINX_PREVIEW_FILE"
 
           if sudo nginx -t; then
             sudo systemctl reload nginx
