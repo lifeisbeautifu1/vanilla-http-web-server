@@ -1,55 +1,55 @@
-name: Cleanup Preview
+# name: Cleanup Preview
 
-on:
-  pull_request:
-    types: ["closed"]
-    branches: ["master"]
+# on:
+#   pull_request:
+#     types: ["closed"]
+#     branches: ["master"]
 
-jobs:
-  cleanup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+# jobs:
+#   cleanup:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Setup SSH
+#         uses: webfactory/ssh-agent@v0.8.0
+#         with:
+#           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Stop and remove
-        run: |
-          BRANCH=${GITHUB_HEAD_REF}
-          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
+#       - name: Stop and remove
+#         run: |
+#           BRANCH=${GITHUB_HEAD_REF}
+#           SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
 
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
-          set -e
+#           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+#           set -e
 
-          BRANCH='$BRANCH'
-          SAFE_BRANCH='$SAFE_BRANCH'
-          PROJECT_DIR="/var/www/preview-$SAFE_BRANCH"
-          NGINX_PREVIEW_FILE="/etc/nginx/conf.d/preview-node.map"
-          PATTERN="~^$SAFE_BRANCH\\.poltoradnev\\.ru\$"
+#           BRANCH='$BRANCH'
+#           SAFE_BRANCH='$SAFE_BRANCH'
+#           PROJECT_DIR="/var/www/preview-$SAFE_BRANCH"
+#           NGINX_PREVIEW_FILE="/etc/nginx/conf.d/preview-node.map"
+#           PATTERN="~^$SAFE_BRANCH\\.poltoradnev\\.ru\$"
 
-          echo "Очистка preview для $SAFE_BRANCH"
+#           echo "Очистка preview для $SAFE_BRANCH"
 
-          docker stop preview-$SAFE_BRANCH || true
-          docker rm preview-$SAFE_BRANCH || true
-          docker rmi preview-$SAFE_BRANCH || true
+#           docker stop preview-$SAFE_BRANCH || true
+#           docker rm preview-$SAFE_BRANCH || true
+#           docker rmi preview-$SAFE_BRANCH || true
 
-          rm -rf $PROJECT_DIR
+#           rm -rf $PROJECT_DIR
 
-          if [ -f "$NGINX_PREVIEW_FILE" ]; then
-            sudo grep -Fv "$PATTERN" "$NGINX_PREVIEW_FILE" | sudo tee "$NGINX_PREVIEW_FILE.tmp" > /dev/null
+#           if [ -f "$NGINX_PREVIEW_FILE" ]; then
+#             sudo grep -Fv "$PATTERN" "$NGINX_PREVIEW_FILE" | sudo tee "$NGINX_PREVIEW_FILE.tmp" > /dev/null
 
-            if sudo nginx -t; then
-              sudo mv "$NGINX_PREVIEW_FILE.tmp" "$NGINX_PREVIEW_FILE"
-              sudo systemctl reload nginx
-              echo "Nginx обновлен: $SAFE_BRANCH удален"
-            else
-              echo "Ошибка в NGINX конфиге после очистки"
-              exit 1
-            fi
-          else
-            echo "Файл $NGINX_PREVIEW_FILE не найден"
-          fi
+#             if sudo nginx -t; then
+#               sudo mv "$NGINX_PREVIEW_FILE.tmp" "$NGINX_PREVIEW_FILE"
+#               sudo systemctl reload nginx
+#               echo "Nginx обновлен: $SAFE_BRANCH удален"
+#             else
+#               echo "Ошибка в NGINX конфиге после очистки"
+#               exit 1
+#             fi
+#           else
+#             echo "Файл $NGINX_PREVIEW_FILE не найден"
+#           fi
 
-          echo "Очистка завершена для $SAFE_BRANCH"
-          '
+#           echo "Очистка завершена для $SAFE_BRANCH"
+#           '

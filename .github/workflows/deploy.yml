@@ -22,7 +22,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
           set -e
 
-          cd ../home/vanilla-http-web-server
+          cd vanilla-http-web-server
           ls -la
 
           ss -tuln | grep ":500[01]" | grep "LISTEN" | grep -oE ":[0-9]+" | cut -d ":" -f 2
